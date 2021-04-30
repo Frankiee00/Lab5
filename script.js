@@ -2,17 +2,166 @@
 
 const img = new Image(); // used to load image from <input> and draw to canvas
 
+//obtaining the canvas
+const canvas = document.getElementById("user-image");
+let ctx = canvas.getContext('2d');
+
+//creating buttons
+const form = document.getElementById("generate-meme");
+const clearButton = document.querySelector("[type='reset']");
+const readButton = document.querySelector("[type='button']");
+const submit = document.querySelector("[type='submit']");
+const volumeSlider = document.querySelector("[type='range']");
+
+//The volume the voice slider is at
+var voiceVolume = volumeSlider.value;
+
+//Speech Synthesis variables
+var synth = window.speechSynthesis;
+var speaking = true;
+
 // Fires whenever the img object loads a new image (such as with img.src =)
 img.addEventListener('load', () => {
-  // TODO
-  let canvas = document.getElementById('user-image');
-  let context = canvas.getContext('2d');
 
+  //clearing the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height); 
+  
+  //toggling buttons
+  clearButton.disabled = true;
+  readButton.disabled = true;
+  submit.disabled = false;
+
+  //filling canvas with black
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);  
+
+  //creating the picture 
+  var pictures = getDimmensions(canvas.width, canvas.height, img.width, img.height);
+  ctx.drawImage(img, pictures["startX"], pictures["startY"], pictures["width"], pictures["height"]);
+
+  // TODO
   // Some helpful tips:
   // - Fill the whole Canvas with black first to add borders on non-square images, then draw on top
   // - Clear the form when a new image is selected
   // - If you draw the image to canvas here, it will update as soon as a new image is selected
 });
+
+//Implementing image input
+const input = document.getElementById("image-input");
+
+input.addEventListener('change', (event) => {
+  img.src = URL.createObjectURL(input.files[0]);
+  img.alt = input.files[0].name;
+});
+
+//implementing the form
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+
+  var top_text = document.getElementById('text-top').value;
+  var bottom_text = document.getElementById('text-bottom').value;
+  
+  ctx.font = "bold 20px arial";
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+  //ctx.strokeStyle = 'black'
+
+  ctx.fillText(top_text, (canvas.width / 2), 30);
+  ctx.fillText(bottom_text, (canvas.width / 2), canvas.height - 20);
+
+  clearButton.disabled = false;
+  readButton.disabled = false;
+  submit.disabled = true;
+
+});
+
+//Implementing the Clear Button
+clearButton.addEventListener('click', (event) => {
+  
+  //clears text input
+  document.getElementById('text-top').value = "";
+  document.getElementById('text-bottom').value = "";
+
+  //clear canvas and set it again
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  //set the buttons
+  readButton.disabled = true;
+  clearButton.disabled = true;
+  submit.disabled = false;
+  
+});
+
+//Implementing the Read text button
+readButton.addEventListener("click", (event) => {
+  
+  event.preventDefault();
+
+  var selectVoice = document.querySelector('select');
+  selectVoice.disabled = false;
+  var voices = synth.getVoices();
+  
+  if(speaking == true){
+    for(var i = 0; i < voices.length; i++){
+      var option = document.createElement("option");
+      option.textContent = voices[i].name + ' (' + voices[i].lang + ')';
+
+      if(voices[i].default){
+        option.textContent += ' -- Default';
+      }
+
+      option.setAttribute('data-lang', voices[i].lang);
+      option.setAttribute('data-name', voices[i].name);
+      selectVoice.appendChild(option);
+    }
+  }
+
+    speaking = false;
+  
+  
+  var bottom_text = document.getElementById("text-bottom").value;
+  var top_text = document.getElementById("text-top").value;
+  var talk = new SpeechSynthesisUtterance(top_text+bottom_text);
+
+  var selection = selectVoice.selectedOptions[0].getAttribute('data-name');
+  for(i = 0; i < voices.length; i++){
+    if(voices[i].name === selection){
+      talk.voice = voices[i];
+    }
+  }
+
+  talk.volume = volumeSlider.value / 100;
+  synth.speak(talk);
+
+});
+
+
+//Implementing volume slider 
+volumeSlider.addEventListener("input", (event) => {
+  voiceVolume = volumeSlider.value;
+  const icon = document.getElementById("volume-group").getElementsByTagName("img")[0];
+
+  if(voiceVolume == 0){
+    icon.src = "icons/volume-level-0.svg";
+    icon.alt = "Volume Level 0";
+  }
+  else if(voiceVolume >= 1 && voiceVolume <= 33){
+    icon.src = "icons/volume-level-1.svg";
+    icon.alt = "Volume Level 1";
+  }
+  else if(voiceVolume >= 34 && voiceVolume <= 66){
+    icon.src = "icons/volume-level-2.svg";
+    icon.alt = "Volume Level 2";
+  }
+  else if(voiceVolume >= 67 && voiceVolume <= 100){
+    icon.src = "icons/volume-level-3.svg";
+    icon.alt = "Volume Level 3";
+  }
+});
+
+
 
 /**
  * Takes in the dimensions of the canvas and the new image, then calculates the new
